@@ -1,23 +1,26 @@
-module Snake (..) where
+module Snake exposing (..)
 
 -- MODEL
 
+import Char
 import Color exposing (Color, rgb, white, green, black)
-import Graphics.Collage exposing (..)
-import Graphics.Element exposing (Element, container, middle)
+import Collage exposing (..)
+import Element exposing (Element, toHtml, container, middle)
 import Keyboard
-import Time exposing (Time, fps, inSeconds)
-import Window
-import Datastructures.Queue as Queue
+import Task
+import Time exposing (Time, every, millisecond)
+import Window exposing (Size)
+import Html.App as App
+import Html exposing (Html)
+
+import Queue
 
 
 gridStep : number
-gridStep =
-  20
+gridStep = 20
 
 
-( gridWidth, gridHeight ) =
-  ( 30, 30 )
+( gridWidth, gridHeight ) = ( 30, 30 )
 
 
 ( gameWidth, gameHeight ) =
@@ -49,6 +52,7 @@ type alias Food =
 type alias Game =
   { snake : Snake
   , food : Food
+  , size : Size
   }
 
 
@@ -70,34 +74,12 @@ defaultGame : Game
 defaultGame =
   { snake = makeSnake { x = 1, y = 0 }
   , food = { x = 5, y = 3 }
+  , size = Size 0 0
   }
 
 
-
--- INPUTS
-
-
-type alias Input =
-  { space : Bool
-  , turn : Int
-  , delta : Time
-  }
-
-
-delta : Signal Time
-delta =
-  Signal.map inSeconds (fps 10)
-
-
-input : Signal Input
-input =
-  Signal.sampleOn delta
-    <| Signal.map3
-        Input
-        Keyboard.space
-        (Signal.map .x Keyboard.wasd)
-        delta
-
+init =
+  (defaultGame, Task.perform (\_ -> NoOp) Resize (Window.size))
 
 
 -- UPDATE
@@ -165,14 +147,11 @@ growTail tail head =
   [ head ] `List.append` tail
 
 
-stepSnake : Time -> Int -> Snake -> Food -> Snake
-stepSnake t turn ({ head, tail, direction } as snake) food =
+stepSnake : Time -> Snake -> Food -> Snake
+stepSnake t ({ head, tail, direction } as snake) food =
   let
-    direction' =
-      relToAbs turn direction
-
     move =
-      dirToMove direction'
+      dirToMove direction
 
     head' =
       { head
@@ -189,28 +168,40 @@ stepSnake t turn ({ head, tail, direction } as snake) food =
     { snake
       | head = head'
       , tail = tail'
-      , direction = direction'
     }
 
 
-stepGame : Input -> Game -> Game
-stepGame input game =
-  let
-    { turn, delta } =
-      input
+type Msg
+  = Resize Size
+  | Turn Int
+  | Tick Time
+  | NoOp
 
-    { snake, food } =
+
+
+stepGame : Msg -> Game -> Game
+stepGame msg ({ snake, food } as game) =
+  case msg of
+    NoOp ->
       game
-  in
-    { game
-      | snake = stepSnake delta turn snake food
-    }
 
+    Resize size ->
+      { game | size = size }
 
-gameState : Signal Game
-gameState =
-  Signal.foldp stepGame defaultGame input
+    Turn relDir ->
+      let
+        direction' =
+          relToAbs relDir snake.direction
 
+        snake' =
+          { snake | direction = direction' }
+      in
+        { game | snake = snake' }
+
+    Tick delta ->
+      { game
+        | snake = stepSnake delta snake food
+      }
 
 
 -- VIEW
@@ -277,6 +268,35 @@ display ( w, h ) { snake, food } =
         ]
 
 
-main : Signal Element
+view : Game -> Html Msg
+view game =
+  let
+    {width, height} = game.size
+  in
+    display ( width, height ) game
+    |> toHtml
+
+
+keyboardProcessor down keyCode =
+  let
+    ch =
+      Char.fromCode keyCode
+      |> Char.toLower
+  in
+    case (down, ch) of
+      ( True, 'a' ) -> Turn -1
+      ( True, 'd' ) -> Turn 1
+      _ -> NoOp
+
+
 main =
-  Signal.map2 display Window.dimensions gameState
+  App.program
+    { init = init
+    , update = \msg m -> stepGame msg m ! []
+    , view = view
+    , subscriptions =
+      (\_ -> Sub.batch
+        [ Window.resizes Resize
+        , Keyboard.downs (keyboardProcessor True)
+        , Time.every (100 * millisecond) Tick])
+    }
