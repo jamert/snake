@@ -53,6 +53,7 @@ type alias Game =
   { snake : Snake
   , food : Food
   , size : Size
+  , paused : Bool
   }
 
 
@@ -75,6 +76,7 @@ defaultGame =
   { snake = makeSnake { x = 1, y = 0 }
   , food = { x = 5, y = 3 }
   , size = Size 0 0
+  , paused = True
   }
 
 
@@ -175,12 +177,13 @@ type Msg
   = Resize Size
   | Turn Int
   | Tick Time
+  | Pause
   | NoOp
 
 
 
 stepGame : Msg -> Game -> Game
-stepGame msg ({ snake, food } as game) =
+stepGame msg ({ snake, food, paused } as game) =
   case msg of
     NoOp ->
       game
@@ -199,8 +202,16 @@ stepGame msg ({ snake, food } as game) =
         { game | snake = snake' }
 
     Tick delta ->
+      if paused then
+        game
+      else
+        { game
+          | snake = stepSnake delta snake food
+        }
+
+    Pause ->
       { game
-        | snake = stepSnake delta snake food
+        | paused = not paused
       }
 
 
@@ -286,6 +297,7 @@ keyboardProcessor down keyCode =
     case (down, ch) of
       ( True, 'a' ) -> Turn -1
       ( True, 'd' ) -> Turn 1
+      ( True, ' ' ) -> Pause
       _ -> NoOp
 
 
