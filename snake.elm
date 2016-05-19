@@ -182,14 +182,14 @@ type Msg
 
 
 
-stepGame : Msg -> Game -> Game
+stepGame : Msg -> Game -> ( Game, Cmd Msg )
 stepGame msg ({ snake, food, paused } as game) =
   case msg of
     NoOp ->
-      game
+      ( game, Cmd.none )
 
     Resize size ->
-      { game | size = size }
+      ( { game | size = size }, Cmd.none )
 
     Turn relDir ->
       let
@@ -199,20 +199,20 @@ stepGame msg ({ snake, food, paused } as game) =
         snake' =
           { snake | direction = direction' }
       in
-        { game | snake = snake' }
+        ( { game | snake = snake' }, Cmd.none )
 
     Tick delta ->
       if paused then
-        game
+        ( game, Cmd.none )
       else
-        { game
-          | snake = stepSnake delta snake food
-        }
+        ( { game
+            | snake = stepSnake delta snake food }
+        , Cmd.none )
 
     Pause ->
-      { game
-        | paused = not paused
-      }
+      ( { game
+          | paused = not paused }
+      , Cmd.none )
 
 
 -- VIEW
@@ -304,7 +304,7 @@ keyboardProcessor down keyCode =
 main =
   App.program
     { init = init
-    , update = \msg m -> stepGame msg m ! []
+    , update = stepGame
     , view = view
     , subscriptions =
       (\_ -> Sub.batch
