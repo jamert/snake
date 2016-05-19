@@ -12,6 +12,7 @@ import Time exposing (Time, every, millisecond)
 import Window exposing (Size)
 import Html.App as App
 import Html exposing (Html)
+import Random
 
 import Queue
 
@@ -149,7 +150,7 @@ growTail tail head =
   [ head ] `List.append` tail
 
 
-stepSnake : Time -> Snake -> Food -> Snake
+stepSnake : Time -> Snake -> Food -> ( Snake, Bool )
 stepSnake t ({ head, tail, direction } as snake) food =
   let
     move =
@@ -161,21 +162,25 @@ stepSnake t ({ head, tail, direction } as snake) food =
         , y = clamp -(gridHeight / 2) (gridHeight / 2) (head.y + move.y)
       }
 
+    eaten = head.x == food.x && head.y == food.y
+
     tail' =
-      if head.x == food.x && head.y == food.y then
+      if eaten then
         growTail tail head
       else
         moveTail tail head
   in
-    { snake
-      | head = head'
-      , tail = tail'
-    }
+    ( { snake
+        | head = head'
+        , tail = tail'
+      }
+    , eaten )
 
 
 type Msg
   = Resize Size
   | Turn Int
+  | Grow ( Float, Float )
   | Tick Time
   | Pause
   | NoOp
@@ -205,9 +210,26 @@ stepGame msg ({ snake, food, paused } as game) =
       if paused then
         ( game, Cmd.none )
       else
-        ( { game
-            | snake = stepSnake delta snake food }
-        , Cmd.none )
+        let
+          ( snake', eaten ) = stepSnake delta snake food
+
+          msg =
+            if eaten then
+              Random.generate
+                Grow
+                <| Random.pair
+                    (Random.float -gridWidth gridWidth)
+                    (Random.float -gridHeight gridHeight)
+            else
+              Cmd.none
+        in
+          ( { game
+              | snake = snake' }
+          , msg )
+
+    Grow (x, y) ->
+      ( { game | food = { x = x, y = y } }
+      , Cmd.none )
 
     Pause ->
       ( { game
