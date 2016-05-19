@@ -29,7 +29,7 @@ gridStep = 20
 
 
 type alias Point =
-  { x : Float, y : Float }
+  { x : Int, y : Int }
 
 
 type Direction
@@ -158,8 +158,8 @@ stepSnake t ({ head, tail, direction } as snake) food =
 
     head' =
       { head
-        | x = clamp -(gridWidth / 2) (gridWidth / 2) (head.x + move.x)
-        , y = clamp -(gridHeight / 2) (gridHeight / 2) (head.y + move.y)
+        | x = round (clamp -(gridWidth / 2) (gridWidth / 2) <| toFloat (head.x + move.x))
+        , y = round (clamp -(gridHeight / 2) (gridHeight / 2) <| toFloat (head.y + move.y))
       }
 
     eaten = head.x == food.x && head.y == food.y
@@ -180,7 +180,7 @@ stepSnake t ({ head, tail, direction } as snake) food =
 type Msg
   = Resize Size
   | Turn Int
-  | Grow ( Float, Float )
+  | Grow ( Int, Int )
   | Tick Time
   | Pause
   | NoOp
@@ -218,8 +218,8 @@ stepGame msg ({ snake, food, paused } as game) =
               Random.generate
                 Grow
                 <| Random.pair
-                    (Random.float -gridWidth gridWidth)
-                    (Random.float -gridHeight gridHeight)
+                    (Random.int (-gridWidth // 2) (gridWidth // 2))
+                    (Random.int (-gridHeight // 2) (gridHeight // 2))
             else
               Cmd.none
         in
@@ -258,21 +258,21 @@ snakeColor =
 displayFood : Food -> Form
 displayFood food =
   move
-    ( food.x * gridStep, food.y * gridStep )
+    ( toFloat food.x * gridStep, toFloat food.y * gridStep )
     (filled foodColor (rect gridStep gridStep))
 
 
 displaySnakeHead : Point -> Form
 displaySnakeHead { x, y } =
   move
-    ( x * gridStep, y * gridStep )
+    ( toFloat x * gridStep, toFloat y * gridStep )
     (filled snakeColor (rect (gridStep - 1) (gridStep - 1)))
 
 
 displaySegment : Point -> Form
 displaySegment { x, y } =
   move
-    ( x * gridStep, y * gridStep )
+    ( toFloat x * gridStep, toFloat y * gridStep )
     (filled snakeColor (rect (gridStep - 1) (gridStep - 1)))
 
 
