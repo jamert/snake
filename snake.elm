@@ -55,6 +55,7 @@ type alias Game =
   , food : Food
   , size : Size
   , paused : Bool
+  , gameOver : Bool
   }
 
 
@@ -78,6 +79,7 @@ defaultGame =
   , food = { x = 5, y = 3 }
   , size = Size 0 0
   , paused = True
+  , gameOver = False
   }
 
 
@@ -150,7 +152,13 @@ growTail tail head =
   [ head ] `List.append` tail
 
 
-stepSnake : Time -> Snake -> Food -> ( Snake, Bool )
+type SnakeMsg
+  = Normal
+  | Eaten
+  | SelfCollision
+
+
+stepSnake : Time -> Snake -> Food -> ( Snake, SnakeMsg )
 stepSnake t ({ head, tail, direction } as snake) food =
   let
     move =
@@ -164,6 +172,14 @@ stepSnake t ({ head, tail, direction } as snake) food =
 
     eaten = head.x == food.x && head.y == food.y
 
+    msg =
+      if eaten then
+        Eaten
+      else if List.member head tail then
+        SelfCollision
+      else
+        Normal
+
     tail' =
       if eaten then
         growTail tail head
@@ -174,13 +190,15 @@ stepSnake t ({ head, tail, direction } as snake) food =
         | head = head'
         , tail = tail'
       }
-    , eaten )
+    , msg )
 
 
 type Msg
   = Resize Size
   | Turn Int
+  | Eat
   | Grow ( Int, Int )
+  | Collide
   | Tick Time
   | Pause
   | NoOp
@@ -188,7 +206,7 @@ type Msg
 
 
 stepGame : Msg -> Game -> ( Game, Cmd Msg )
-stepGame msg ({ snake, food, paused } as game) =
+stepGame msg ({ snake, food, paused, gameOver } as game) =
   case msg of
     NoOp ->
       ( game, Cmd.none )
@@ -211,31 +229,40 @@ stepGame msg ({ snake, food, paused } as game) =
         ( game, Cmd.none )
       else
         let
-          ( snake', eaten ) = stepSnake delta snake food
+          ( snake', msg ) = stepSnake delta snake food
 
-          msg =
-            if eaten then
-              Random.generate
+          game' = { game | snake = snake' }
+        in
+          case msg of
+            Eaten ->
+              stepGame Eat game'
+
+            SelfCollision ->
+              stepGame Collide game
+
+            Normal ->
+              ( game', Cmd.none )
+
+    Eat ->
+       ( game
+       , Random.generate
                 Grow
                 <| Random.pair
                     (Random.int (-gridWidth // 2) (gridWidth // 2))
-                    (Random.int (-gridHeight // 2) (gridHeight // 2))
-            else
-              Cmd.none
-        in
-          ( { game
-              | snake = snake' }
-          , msg )
+                    (Random.int (-gridHeight // 2) (gridHeight // 2)) )
 
     Grow (x, y) ->
       ( { game | food = { x = x, y = y } }
       , Cmd.none )
 
-    Pause ->
-      ( { game
-          | paused = not paused }
-      , Cmd.none )
+    Collide ->
+      stepGame Pause { game | gameOver = True }
 
+    Pause ->
+      if gameOver && paused then
+        init
+      else
+        ( { game | paused = not paused }, Cmd.none )
 
 -- VIEW
 
