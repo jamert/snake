@@ -156,6 +156,7 @@ type SnakeMsg
   = Normal
   | Eaten
   | SelfCollision
+  | BoundaryCollision
 
 
 stepSnake : Time -> Snake -> Food -> ( Snake, SnakeMsg )
@@ -166,17 +167,25 @@ stepSnake t ({ head, tail, direction } as snake) food =
 
     head' =
       { head
-        | x = round (clamp -(gridWidth / 2) (gridWidth / 2) <| toFloat (head.x + move.x))
-        , y = round (clamp -(gridHeight / 2) (gridHeight / 2) <| toFloat (head.y + move.y))
+        | x = head.x + move.x
+        , y = head.y + move.y
       }
 
     eaten = head.x == food.x && head.y == food.y
+
+    outside
+      = head'.x < (-gridWidth // 2)
+      || head'.x > (gridWidth // 2)
+      || head'.y < (-gridHeight // 2)
+      || head'.y > (gridHeight // 2)
 
     msg =
       if eaten then
         Eaten
       else if List.member head tail then
         SelfCollision
+      else if outside then
+        BoundaryCollision
       else
         Normal
 
@@ -238,6 +247,9 @@ stepGame msg ({ snake, food, paused, gameOver } as game) =
               stepGame Eat game'
 
             SelfCollision ->
+              stepGame Collide game
+
+            BoundaryCollision ->
               stepGame Collide game
 
             Normal ->
