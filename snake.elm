@@ -56,6 +56,7 @@ type alias Game =
   , size : Size
   , paused : Bool
   , gameOver : Bool
+  , controls : Direction -> Direction -> Direction
   }
 
 
@@ -80,6 +81,7 @@ defaultGame =
   , size = Size 0 0
   , paused = True
   , gameOver = False
+  , controls = absoluteControls
   }
 
 
@@ -88,37 +90,6 @@ init =
 
 
 -- UPDATE
-
-
-relToAbs : Int -> Direction -> Direction
-relToAbs turn dir =
-  case ( turn, dir ) of
-    ( -1, Up ) ->
-      Left
-
-    ( 1, Up ) ->
-      Right
-
-    ( -1, Down ) ->
-      Right
-
-    ( 1, Down ) ->
-      Left
-
-    ( -1, Left ) ->
-      Down
-
-    ( 1, Left ) ->
-      Up
-
-    ( -1, Right ) ->
-      Up
-
-    ( 1, Right ) ->
-      Down
-
-    ( _, dir ) ->
-      dir
 
 
 dirToMove : Direction -> Point
@@ -202,16 +173,53 @@ stepSnake t ({ head, tail, direction } as snake) food =
     , msg )
 
 
+relativeControls : Direction -> Direction -> Direction
+relativeControls press previous =
+  case ( press, previous ) of
+    ( Left, Up ) -> Left
+    ( Right, Up ) -> Right
+
+    ( Left, Down ) -> Right
+    ( Right, Down ) -> Left
+
+    ( Left, Left ) -> Down
+    ( Right, Left ) -> Up
+
+    ( Left, Right ) -> Up
+    ( Right, Right ) -> Down
+
+    (_, _) -> previous
+
+
+absoluteControls : Direction -> Direction -> Direction
+absoluteControls press previous =
+  case ( press, previous ) of
+    -- w
+    ( Up, Left ) -> Up
+    ( Up, Right ) -> Up
+    -- s
+    ( Down, Left ) -> Down
+    ( Down, Right ) -> Down
+    -- a
+    ( Left, Up ) -> Left
+    ( Left, Down ) -> Left
+    -- d
+    ( Right, Up ) -> Right
+    ( Right, Down ) -> Right
+
+    (_, _) -> previous
+
+
 type Msg
   = Resize Size
-  | Turn Int
+  | ChangeConrols
+  | Turn Direction
   | Eat
   | Grow ( Int, Int )
   | Collide
   | Tick Time
   | Pause
   | NoOp
-
 
 
 stepGame : Msg -> Game -> ( Game, Cmd Msg )
@@ -223,10 +231,20 @@ stepGame msg ({ snake, food, paused, gameOver } as game) =
     Resize size ->
       ( { game | size = size }, Cmd.none )
 
-    Turn relDir ->
+    ChangeConrols ->
+      let
+        controls' =
+          if game.controls == absoluteControls then
+             relativeControls
+          else
+             absoluteControls
+      in
+        ( { game | controls = controls' }, Cmd.none )
+
+    Turn direction ->
       let
         direction' =
-          relToAbs relDir snake.direction
+          game.controls direction snake.direction
 
         snake' =
           { snake | direction = direction' }
@@ -356,8 +374,11 @@ keyboardProcessor down keyCode =
       |> Char.toLower
   in
     case (down, ch) of
-      ( True, 'a' ) -> Turn -1
-      ( True, 'd' ) -> Turn 1
+      ( True, 'w' ) -> Turn Up
+      ( True, 's' ) -> Turn Down
+      ( True, 'a' ) -> Turn Left
+      ( True, 'd' ) -> Turn Right
+      ( True, 'r' ) -> ChangeConrols
       ( True, ' ' ) -> Pause
       _ -> NoOp
 
