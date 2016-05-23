@@ -282,8 +282,18 @@ stepGame msg ({ snake, food, paused, gameOver } as game) =
                     (Random.int (-gridHeight // 2) (gridHeight // 2)) )
 
     Grow (x, y) ->
-      ( { game | food = { x = x, y = y } }
-      , Cmd.none )
+      let
+        food' = { x = x, y = y }
+
+        inside =
+          List.member food' snake.tail
+          || food' == snake.head
+      in
+        if inside then
+          stepGame Eat game
+        else
+          ( { game | food = food' }
+          , Cmd.none )
 
     Collide ->
       stepGame Pause { game | gameOver = True }
