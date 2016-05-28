@@ -43,6 +43,7 @@ type alias Snake =
   { head : Point
   , tail : List Point
   , direction : Direction
+  , nextDirection: Direction
   }
 
 
@@ -71,6 +72,7 @@ makeSnake hd =
       , { x = hd.x - 3, y = hd.y - 2 }
       ]
   , direction = Right
+  , nextDirection = Right
   }
 
 
@@ -131,10 +133,10 @@ type SnakeMsg
 
 
 stepSnake : Time -> Snake -> Food -> ( Snake, SnakeMsg )
-stepSnake t ({ head, tail, direction } as snake) food =
+stepSnake t ({ head, tail, direction, nextDirection } as snake) food =
   let
     move =
-      dirToMove direction
+      dirToMove nextDirection
 
     head' =
       { head
@@ -169,6 +171,7 @@ stepSnake t ({ head, tail, direction } as snake) food =
     ( { snake
         | head = head'
         , tail = tail'
+        , direction = nextDirection
       }
     , msg )
 
@@ -243,11 +246,11 @@ stepGame msg ({ snake, food, paused, gameOver } as game) =
 
     Turn direction ->
       let
-        direction' =
+        nextDirection =
           game.controls direction snake.direction
 
         snake' =
-          { snake | direction = direction' }
+          { snake | nextDirection = nextDirection }
       in
         ( { game | snake = snake' }, Cmd.none )
 
