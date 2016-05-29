@@ -3,16 +3,18 @@ module Snake exposing (..)
 -- MODEL
 
 import Char
-import Color exposing (Color, rgb, white, green, black)
 import Collage exposing (..)
-import Element exposing (Element, toHtml, container, middle)
+import Color exposing (Color, rgb, white, green, black)
+import Element exposing (Element, toHtml, container, middle, beside, spacer)
+import Html exposing (Html)
+import Html.App as App
 import Keyboard
+import Random
+import String
 import Task
+import Text
 import Time exposing (Time, every, millisecond)
 import Window exposing (Size)
-import Html.App as App
-import Html exposing (Html)
-import Random
 
 import Queue
 
@@ -359,16 +361,47 @@ displaySnake { head, tail } =
     ]
 
 
+displayGame : Game -> Element
+displayGame { snake, food } =
+    container gameWidth gameHeight middle
+      <| collage
+          gameHeight
+          gameWidth
+          [ filled fieldColor (rect gameWidth gameHeight)
+          , displayFood food
+          , displaySnake snake
+          ]
+
+
+displayInstructions : Int -> Element
+displayInstructions size =
+  let
+    cntSize = toFloat size / 4
+    arrPos = cntSize / 2
+    spacePos = cntSize *  3 / 2
+  in
+    container size gameHeight middle
+      <| collage
+          size
+          size
+          [ move ( 0, cntSize ) (Text.fromString "W" |> text)
+          , move ( 0, arrPos ) (String.fromChar '\x2b06' |> Text.fromString |> text)
+          , move ( 0, -cntSize ) (Text.fromString "S" |> text)
+          , move ( 0, -arrPos ) (String.fromChar '\x2b07' |> Text.fromString |> text)
+          , move ( -cntSize, 0 ) (Text.fromString "A" |> text)
+          , move ( -arrPos, 0 ) (String.fromChar '\x2b05' |> Text.fromString |> text)
+          , move ( cntSize, 0 ) (Text.fromString "D" |> text)
+          , move ( arrPos, 0 ) (String.fromChar '\x27a1' |> Text.fromString |> text)
+          , move ( 0, -spacePos ) (Text.fromString "SPACEBAR = PAUSE" |> text)
+          ]
+
+
 display : ( Int, Int ) -> Game -> Element
-display ( w, h ) { snake, food } =
+display ( w, h ) game =
   container w h middle
-    <| collage
-        gameHeight
-        gameWidth
-        [ filled fieldColor (rect gameWidth gameHeight)
-        , displayFood food
-        , displaySnake snake
-        ]
+    <| (spacer ((w - gameWidth) // 2) ((w - gameWidth) // 2))
+       `beside` (displayGame game)
+       `beside` (displayInstructions ((w - gameWidth) // 2))
 
 
 view : Game -> Html Msg
