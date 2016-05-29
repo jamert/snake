@@ -69,9 +69,7 @@ makeSnake hd =
   , tail =
       [ { x = hd.x - 1, y = hd.y }
       , { x = hd.x - 2, y = hd.y }
-      , { x = hd.x - 2, y = hd.y - 1 }
-      , { x = hd.x - 2, y = hd.y - 2 }
-      , { x = hd.x - 3, y = hd.y - 2 }
+      , { x = hd.x - 3, y = hd.y }
       ]
   , direction = Right
   , nextDirection = Right
